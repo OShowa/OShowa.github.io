@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Transformations</title>
+        <script>
+"use strict";
+
+/* length of the side of the square */
+var sqrLength = 100;
+
+/* vertices are DOMPoints, and red vertex starts at the center of the canvas */
+var vertices = [ new DOMPoint(200, 200),
+                 new DOMPoint(200, 200 - sqrLength),
+                 new DOMPoint(200 + sqrLength, 200 - sqrLength),
+                 new DOMPoint(200 + sqrLength, 200) ];
+
+var colors = [ "red", "green", "blue", "white"];
+
+var center = 0;
+
+/**
+ * Number of points (vertices).
+ * @type {Number}
+ */
+var numPoints = vertices.length / 2;
+
+// A few global variables...
+
+/**
+ * Canvas width.
+ * @type {Number}
+ */
+var w;
+
+/**
+ * Canvas height.
+ * @type {Number}
+ */
+var h;
+
+
+/**
+ * Maps a point in world coordinates to viewport coordinates.<br>
+ * - [-n,n] x [-n,n] -> [-w,w] x [h,-h]
+ * <p>Note that the Y axix points downwards.</p>
+ * @param {Number} x point x coordinate.
+ * @param {Number} y point y coordinate.
+ * @param {Number} n window size.
+ * @returns {Array<Number>} transformed point.
+ */
+function mapToViewport(x, y, n = 5) {
+    return [((x + n / 2) * w) / n, ((-y + n / 2) * h) / n];
+}
+
+/**
+ * Returns the coordinates of the vertex at index i.
+ * @param {Number} i vertex index.
+ * @returns {Array<Number>} vertex coordinates.
+ */
+function getVertex(i) {
+    let j = (i % numPoints) * 2;
+    return [vertices[j], vertices[j + 1]];
+}
+
+/* creates a circle for a given vertex according to its color */
+function circle(i, ctx) {
+    ctx.beginPath();
+    ctx.arc(vertices[i].x, vertices[i].y, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = colors[i];
+    ctx.closePath();
+    ctx.fill();
+}
+
+/* draws our main character! */
+function draw(ctx) {
+
+    ctx.fillStyle = "rgba(0, 204, 204, 1)";
+    ctx.rect(0, 0, w, h);
+    ctx.fill();
+
+    // creates a "nice looking" gradient along the squares diagonal
+    let gradient = ctx.createLinearGradient(vertices[0].x, vertices[0].y, vertices[2].x, vertices[2].y);
+
+    // Add five color stops
+    gradient.addColorStop(0, "black");
+    gradient.addColorStop(0.5, colors[center]); // gradient color is center color
+    gradient.addColorStop(1, "black");
+
+    ctx.beginPath(); // starts drawing square outline
+    ctx.moveTo(vertices[0].x, vertices[0].y);
+    ctx.lineTo(vertices[1].x, vertices[1].y);
+    ctx.lineTo(vertices[2].x, vertices[2].y);
+    ctx.lineTo(vertices[3].x, vertices[3].y);
+    ctx.closePath();
+    ctx.stroke(); // square outline
+    // the fill color
+    ctx.fillStyle = gradient;
+    ctx.fill(); // fills square color
+
+    // draws vertices colors
+    circle(0, ctx);
+    circle(1, ctx);
+    circle(2, ctx);
+    circle(3, ctx);
+
+}
+
+/* Creates a matrix that rotates the square vertices around the one chosen as center. */
+function rotationMatrix(vertex, angle, center) {
+
+    let rotationMatrix = new DOMMatrix();
+    let centerVertex = vertices[center];
+
+    if ((vertex.x == centerVertex.x) && (vertex.y == centerVertex.y)) {
+        return rotationMatrix; // if vertex is already center, identity matrix is enough
+    }
+
+    rotationMatrix = rotationMatrix.translate(centerVertex.x, centerVertex.y); // translates to center
+    rotationMatrix = rotationMatrix.rotate(angle) // rotates around it
+    rotationMatrix = rotationMatrix.translate(-centerVertex.x, -centerVertex.y); // translates back to original position
+
+    return rotationMatrix;
+
+}
+
+/**
+ * <p>Entry point when page is loaded.</p>
+ *
+ * Basically this function does setup that "should" only have to be done once,<br>
+ * while draw() does things that have to be repeated each time the canvas is
+ * redrawn.
+ */
+function mainEntrance() {
+    // retrieve <canvas> element
+    var canvasElement = document.querySelector("#theCanvas");
+    var ctx = canvasElement.getContext("2d");
+
+    w = canvasElement.width;
+    h = canvasElement.height;
+
+    var runanimation = (() => {
+
+        return () => {
+            draw(ctx);
+
+            // each vertex is rotated along the axis, 2 degrees anticlockwise
+            vertices = vertices.map(vertex => vertex.matrixTransform(rotationMatrix(vertex, -2, center)));
+            // request that the browser calls runanimation() again "as soon as it can"
+            requestAnimationFrame(runanimation);
+        };
+    })();
+
+    // draw!
+    runanimation();
+}
+
+document.onkeypress = function(input) { // checks for user input and changes center accordingly
+    input = input || window.event;
+
+    switch(input.key) {
+        case 'r':
+            center = 0;
+            break;
+        case 'g':
+            center = 1;
+            break;
+        case 'b':
+            center = 2;
+            break;
+        case 'w':
+            center = 3;
+            break;
+    }
+
+}
+
+        </script>
+    </head>
+
+    <body>
+        <canvas id="theCanvas" width="400" height="400">
+            Please use a browser that supports "canvas"
+        </canvas>
+
+        <p>Type: "r", "g", "b" or "w"</p>
+
+        <script src="/WebGL/teal_book/cuon-matrix.js"></script>
+        <script src="RotatingSquare.js"></script>
+        <script>
+            window.onload = mainEntrance;
+        </script>
+    </body>
+</html>
